@@ -1,4 +1,4 @@
-# Note Summarizer
+# Note Summarizer (UNFINISHED)
 
 Note Summarizer is a web application that allows users to transcribe audio recordings and YouTube videos into text, and then summarize the text into Cornell notes format. Users can input their own OpenAI API key to use the transcription and summarization services.
 
