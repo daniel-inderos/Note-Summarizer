@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note Summarizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        input[type="text"], input[type="password"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin: 4px 0;
+            box-sizing: border-box;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+        }
+        audio {
+            display: block;
+            margin-top: 10px;
+        }
+        .output {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+        .notes-container {
+            display: flex;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .notes-list {
+            flex: 1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .note-item {
+            flex: 1 1 calc(33.333% - 10px);
+            padding: 10px;
+            background-color: #d0ebff;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .note-item:hover {
+            background-color: #b8e0ff;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            border-radius: 8px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .dropdown {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Note Summarizer</h1>
+
+        <!-- API Key Section -->
+        <h2>Enter Your OpenAI API Key</h2>
+        <input type="password" id="apiKey" placeholder="Enter your OpenAI API key">
+        <button onclick="saveApiKey()">Save API Key</button>
+
+        <!-- Record Audio Section -->
+        <h2>Record Audio</h2>
+        <button id="recordButton">Start Recording</button>
+        <button id="stopButton" disabled>Stop Recording</button>
+        <audio id="audioPlayback" controls></audio>
+        <br>
+        <button onclick="uploadAndSummarizeAudio()">Transcribe and Summarize</button>
+        <div id="transcription" class="output" style="display:none;"></div>
+
+        <!-- YouTube Link Section -->
+        <h2>Transcribe YouTube Audio</h2>
+        <input type="text" id="youtubeUrl" placeholder="Enter YouTube URL">
+        <button onclick="transcribeAndSummarizeYouTube()">Transcribe and Summarize</button>
+        <div id="youtubeTranscription" class="output" style="display:none;"></div>
+
+        <button onclick="saveNotes()">Save Notes</button>
+        <button onclick="loadNotes()">Load Notes</button>
+
+        <!-- Notes List Section -->
+        <h2>Your Notes</h2>
+        <div id="notesList" class="notes-list"></div>
+    </div>
+
+    <!-- Modal for Viewing Notes -->
+    <div id="noteModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2 id="noteTitle"></h2>
+            <p id="noteContent"></p>
+            <div class="dropdown">
+                <button onclick="toggleTranscript()">Show Transcript</button>
+                <div id="transcript" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+
+        document.getElementById('recordButton').addEventListener('click', async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.start();
+            document.getElementById('recordButton').disabled = true;
+            document.getElementById('stopButton').disabled = false;
+
+            mediaRecorder.ondataavailable = event => {
+                audioChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = document.getElementById('audioPlayback');
+                audio.src = audioUrl;
+
+                audioChunks = [];
+                document.getElementById('recordButton').disabled = false;
+                document.getElementById('stopButton').disabled = true;
+            };
+        });
+
+        document.getElementById('stopButton').addEventListener('click', () => {
+            mediaRecorder.stop();
+        });
+
+        function uploadAndSummarizeAudio() {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'recording.wav');
+            fetch('/transcribe', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('apiKey')}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Transcription:', data.transcription); // Debugging log
+                document.getElementById('transcription').innerText = data.transcription;
+                document.getElementById('transcription').style.display = 'none';
+                summarize(data.transcription); // Pass the transcription to summarize function
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function transcribeAndSummarizeYouTube() {
+            const url = document.getElementById('youtubeUrl').value;
+            fetch('/transcribe_youtube', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('apiKey')}`
+                },
+                body: JSON.stringify({ url })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('YouTube Transcription:', data.transcription); // Debugging log
+                document.getElementById('youtubeTranscription').innerText = data.transcription;
+                document.getElementById('youtubeTranscription').style.display = 'none';
+                summarize(data.transcription); // Pass the transcription to summarize function
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function summarize(transcription) {
+            fetch('/summarize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('apiKey')}`
+                },
+                body: JSON.stringify({ text: transcription })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Summary:', data.summary); // Debugging log
+                document.getElementById('summary').innerText = data.summary;
+                saveNotes(transcription, data.summary); // Pass both transcription and summary to saveNotes function
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function saveApiKey() {
+            const apiKey = document.getElementById('apiKey').value;
+            localStorage.setItem('apiKey', apiKey);
+            alert('API key saved!');
+        }
+
+        function saveNotes(transcription, summary) {
+            const notes = JSON.parse(localStorage.getItem('notes')) || [];
+            notes.push({
+                transcription,
+                summary
+            });
+
+            localStorage.setItem('notes', JSON.stringify(notes));
+            console.log('Notes saved:', notes); // Debugging log
+            alert('Notes saved locally!');
+            displayNotes();
+        }
+
+        function loadNotes() {
+            const notes = JSON.parse(localStorage.getItem('notes'));
+            const apiKey = localStorage.getItem('apiKey');
+
+            if (apiKey) {
+                document.getElementById('apiKey').value = apiKey;
+            }
+
+            if (notes && notes.length > 0) {
+                console.log('Notes loaded:', notes); // Debugging log
+                displayNotes();
+            } else {
+                console.log('No notes to load'); // Debugging log
+                alert('No notes found');
+            }
+        }
+
+        function displayNotes() {
+            const notes = JSON.parse(localStorage.getItem('notes')) || [];
+            const notesList = document.getElementById('notesList');
+            notesList.innerHTML = '';
+
+            notes.forEach((note, index) => {
+                const noteItem = document.createElement('div');
+                noteItem.className = 'note-item';
+                noteItem.innerText = `Note #${index + 1}`;
+                noteItem.onclick = () => openModal(note, index + 1);
+                notesList.appendChild(noteItem);
+            });
+            console.log('Notes displayed:', notes); // Debugging log
+        }
+
+        function openModal(note, index) {
+            document.getElementById('noteTitle').innerText = `Note #${index}`;
+            document.getElementById('noteContent').innerText = note.summary;
+            document.getElementById('transcript').innerText = note.transcription;
+            document.getElementById('transcript').style.display = 'none'; // Hide the transcript by default
+            document.getElementById('noteModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('noteModal').style.display = 'none';
+        }
+
+        function toggleTranscript() {
+            const transcript = document.getElementById('transcript');
+            transcript.style.display = transcript.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // Load notes and API key when the page loads
+        window.onload = loadNotes;
+    </script>
+</body>
+</html>
