@@ -24,10 +24,6 @@ Note Summarizer is a web application that allows users to transcribe audio recor
 
 - Python 3.6+
 - Pip (Python package installer)
-- Git
-- [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli) (if deploying to Heroku)
-- [Vercel CLI](https://vercel.com/docs/cli) (if deploying to Vercel)
-- [Netlify CLI](https://docs.netlify.com/cli/get-started/) (if deploying to Netlify)
 
 ### Installation
 
@@ -66,92 +62,6 @@ Note Summarizer is a web application that allows users to transcribe audio recor
    ```
 
 3. Open your web browser and go to `http://localhost:5000`.
-
-### Deployment
-
-#### Deploying to Vercel
-
-1. Install Vercel CLI:
-
-   ```bash
-   npm install -g vercel
-   ```
-
-2. Create a `vercel.json` configuration file:
-
-   ```json
-   {
-     "version": 2,
-     "builds": [
-       { "src": "app.py", "use": "@vercel/python" }
-     ],
-     "routes": [
-       { "src": "/(.*)", "dest": "app.py" }
-     ]
-   }
-   ```
-
-3. Deploy to Vercel:
-
-   ```bash
-   vercel
-   ```
-
-4. Set the environment variable in Vercel:
-
-   - Go to your project dashboard on Vercel.
-   - Navigate to "Settings" > "Environment Variables".
-   - Add your `OPENAI_API_KEY` environment variable.
-
-#### Deploying to Netlify
-
-1. Install Netlify CLI:
-
-   ```bash
-   npm install -g netlify-cli
-   ```
-
-2. Create a `netlify.toml` configuration file:
-
-   ```toml
-   [build]
-     command = "pip install -r requirements.txt && python app.py"
-     publish = "."
-
-   [[redirects]]
-     from = "/*"
-     to = "/index.html"
-     status = 200
-   ```
-
-3. Deploy to Netlify:
-
-   ```bash
-   netlify deploy --prod
-   ```
-
-4. Set the environment variable in Netlify:
-
-   - Go to your project dashboard on Netlify.
-   - Navigate to "Site settings" > "Build & deploy" > "Environment".
-   - Add your `OPENAI_API_KEY` environment variable.
-
-## Usage
-
-1. Open the application in your web browser.
-2. Enter your OpenAI API key.
-3. Record audio or enter a YouTube URL to transcribe.
-4. Click "Summarize" to get a summary in Cornell notes format.
-5. Save and load your notes using the provided buttons.
-
-## Contributing
-
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Make your changes.
-4. Commit your changes (`git commit -m 'Add some feature'`).
-5. Push to the branch (`git push origin feature-branch`).
-6. Create a pull request.
 
 ## License
 
