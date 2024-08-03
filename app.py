@@ -131,7 +131,7 @@ def summarize():
     logging.debug("Starting summarization")
     openai.api_key = api_key
     response = openai.ChatCompletion.create(
-        model="gpt-4",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": f"Summarize the following text into Cornell notes format:\n\n{text}"}
