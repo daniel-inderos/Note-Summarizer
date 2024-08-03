@@ -44,7 +44,7 @@
             background-color: #ccc;
             cursor: not-allowed;
         }
-        input[type="text"], input[type="password"] {
+        input[type="text"], input[type="password"], textarea {
             width: calc(100% - 22px);
             padding: 10px;
             margin: 4px 0;
@@ -118,6 +118,15 @@
         .dropdown {
             margin-top: 10px;
         }
+        #pasteTextArea {
+            width: calc(100% - 22px);
+            height: 300px;
+            padding: 10px;
+            margin: 4px 0;
+            box-sizing: border-box;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -136,13 +145,30 @@
         <audio id="audioPlayback" controls></audio>
         <br>
         <button onclick="uploadAndSummarizeAudio()">Transcribe and Summarize</button>
-        <div id="transcription" class="output" style="display:none;"></div>
+
+        <!-- Upload Audio Section -->
+        <h2>Upload Audio File</h2>
+        <input type="file" id="audioFile" accept="audio/*">
+        <button onclick="uploadAndSummarizeUploadedAudio()">Transcribe and Summarize</button>
 
         <!-- YouTube Link Section -->
         <h2>Transcribe YouTube Audio</h2>
         <input type="text" id="youtubeUrl" placeholder="Enter YouTube URL">
         <button onclick="transcribeAndSummarizeYouTube()">Transcribe and Summarize</button>
-        <div id="youtubeTranscription" class="output" style="display:none;"></div>
+
+        <!-- Paste Text Section -->
+        <h2>Paste Text</h2>
+        <button id="openPasteModal">Open Paste Text Modal</button>
+
+        <!-- Paste Text Modal -->
+        <div id="pasteTextModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closePasteModal()">×</span>
+                <h2>Paste Your Text Here</h2>
+                <textarea id="pasteTextArea" placeholder="Paste your text here..."></textarea>
+                <button onclick="summarizePastedText()">Summarize</button>
+            </div>
+        </div>
 
         <button onclick="saveNotes()">Save Notes</button>
         <button onclick="loadNotes()">Load Notes</button>
@@ -155,7 +181,7 @@
     <!-- Modal for Viewing Notes -->
     <div id="noteModal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
+            <span class="close" onclick="closeModal()">×</span>
             <h2 id="noteTitle"></h2>
             <p id="noteContent"></p>
             <div class="dropdown">
@@ -209,10 +235,35 @@
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Transcription:', data.transcription); // Debugging log
-                document.getElementById('transcription').innerText = data.transcription;
-                document.getElementById('transcription').style.display = 'none';
-                summarize(data.transcription); // Pass the transcription to summarize function
+                console.log('Transcription:', data.transcription);
+                summarize(data.transcription);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function uploadAndSummarizeUploadedAudio() {
+            const audioFile = document.getElementById('audioFile').files[0];
+            if (!audioFile) {
+                alert('Please select an audio file.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('audio', audioFile);
+
+            fetch('/transcribe', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('apiKey')}`
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Transcription:', data.transcription);
+                summarize(data.transcription);
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -231,30 +282,28 @@
             })
             .then(response => response.json())
             .then(data => {
-                console.log('YouTube Transcription:', data.transcription); // Debugging log
-                document.getElementById('youtubeTranscription').innerText = data.transcription;
-                document.getElementById('youtubeTranscription').style.display = 'none';
-                summarize(data.transcription); // Pass the transcription to summarize function
+                console.log('YouTube Transcription:', data.transcription);
+                summarize(data.transcription);
             })
             .catch(error => {
                 console.error('Error:', error);
             });
         }
 
-        function summarize(transcription) {
+        function summarize(text) {
             fetch('/summarize', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('apiKey')}`
                 },
-                body: JSON.stringify({ text: transcription })
+                body: JSON.stringify({ text })
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Summary:', data.summary); // Debugging log
-                document.getElementById('summary').innerText = data.summary;
-                saveNotes(transcription, data.summary); // Pass both transcription and summary to saveNotes function
+                console.log('Summary:', data.summary);
+                displaySummary(data.summary);
+                saveNotes(text, data.summary);
             })
             .catch(error => {
                 console.error('Error:', error);
@@ -275,7 +324,7 @@
             });
 
             localStorage.setItem('notes', JSON.stringify(notes));
-            console.log('Notes saved:', notes); // Debugging log
+            console.log('Notes saved:', notes);
             alert('Notes saved locally!');
             displayNotes();
         }
@@ -289,10 +338,10 @@
             }
 
             if (notes && notes.length > 0) {
-                console.log('Notes loaded:', notes); // Debugging log
+                console.log('Notes loaded:', notes);
                 displayNotes();
             } else {
-                console.log('No notes to load'); // Debugging log
+                console.log('No notes to load');
                 alert('No notes found');
             }
         }
@@ -309,14 +358,14 @@
                 noteItem.onclick = () => openModal(note, index + 1);
                 notesList.appendChild(noteItem);
             });
-            console.log('Notes displayed:', notes); // Debugging log
+            console.log('Notes displayed:', notes);
         }
 
         function openModal(note, index) {
             document.getElementById('noteTitle').innerText = `Note #${index}`;
             document.getElementById('noteContent').innerText = note.summary;
             document.getElementById('transcript').innerText = note.transcription;
-            document.getElementById('transcript').style.display = 'none'; // Hide the transcript by default
+            document.getElementById('transcript').style.display = 'none';
             document.getElementById('noteModal').style.display = 'block';
         }
 
@@ -328,6 +377,31 @@
             const transcript = document.getElementById('transcript');
             transcript.style.display = transcript.style.display === 'none' ? 'block' : 'none';
         }
+
+        // Function to display the summary (replace with your preferred method)
+        function displaySummary(summary) {
+            alert("Summary:\n" + summary);
+        }
+
+           // Function to open the paste text modal
+           function openPasteModal() {
+            document.getElementById('pasteTextModal').style.display = 'block';
+        }
+
+        // Function to close the paste text modal
+        function closePasteModal() {
+            document.getElementById('pasteTextModal').style.display = 'none';
+        }
+
+        // Function to summarize pasted text
+        function summarizePastedText() {
+            const text = document.getElementById('pasteTextArea').value;
+            summarize(text);
+            closePasteModal();
+        }
+
+        // Ensure this line is present and correctly calls openPasteModal
+        document.getElementById('openPasteModal').addEventListener('click', openPasteModal);
 
         // Load notes and API key when the page loads
         window.onload = loadNotes;

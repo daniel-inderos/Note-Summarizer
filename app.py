@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from pydub import AudioSegment
-import openai
+from openai import OpenAI
+
+client = OpenAI(api_key=api_key)
 import os
 import yt_dlp
 import requests
@@ -15,6 +17,7 @@ CORS(app)
 
 # Set up OpenAI API key
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB
+
 
 def split_audio(audio_path, max_size):
     logging.debug(f"Splitting audio: {audio_path}")
@@ -42,10 +45,11 @@ def split_audio(audio_path, max_size):
     logging.debug(f"Number of chunks created: {len(chunks)}")
     return chunks
 
+
 def transcribe_audio_chunk(audio_chunk, api_key):
     with open('temp_chunk.wav', 'wb') as f:
         audio_chunk.export(f, format='wav')
-    
+
     with open('temp_chunk.wav', 'rb') as audio_file:
         response = requests.post(
             'https://api.openai.com/v1/audio/transcriptions',
@@ -61,9 +65,11 @@ def transcribe_audio_chunk(audio_chunk, api_key):
     logging.debug(f"Transcription response: {transcription_data}")
     return transcription_data.get('text', '')
 
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
@@ -84,6 +90,7 @@ def transcribe():
 
     logging.debug("Transcription complete")
     return jsonify({'transcription': transcription.strip()})
+
 
 @app.route('/transcribe_youtube', methods=['POST'])
 def transcribe_youtube():
@@ -119,6 +126,7 @@ def transcribe_youtube():
     logging.debug("Transcription complete")
     return jsonify({'transcription': transcription.strip()})
 
+
 @app.route('/summarize', methods=['POST'])
 def summarize():
     data = request.get_json()
@@ -129,20 +137,18 @@ def summarize():
         return jsonify({'error': 'No text provided'}), 400
 
     logging.debug("Starting summarization")
-    openai.api_key = api_key
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"Summarize the following text into Cornell notes format:\n\n{text}"}
-        ],
-        max_tokens=150,
-        temperature=0.5
-    )
+    response = client.chat.completions.create(model="gpt-4o-mini",  # Updated model for better summarization
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": f"Summarize the following text into Cornell notes format:\n\n{text}"}
+    ],
+    max_tokens=150,
+    temperature=0.5)
 
-    summary = response.choices[0].message['content'].strip()
+    summary = response.choices[0].message.content.strip()
     logging.debug("Summarization complete")
     return jsonify({'summary': summary})
+
 
 if __name__ == '__main__':
     app.run(debug=True)
